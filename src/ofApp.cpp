@@ -173,6 +173,7 @@ void ofApp::draw() {
 		ofSetColor(ofColor::lightGreen);
 		ofDrawSphere(p, .02 * d.length());
 	}
+    
 
 	ofPopMatrix();
 	cam.end();
@@ -358,6 +359,7 @@ bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
 
 	if (pointSelected) {
 		pointRet = octree.mesh.getVertex(selectedNode.points[0]);
+        
 	}
 	return pointSelected;
 }
@@ -414,7 +416,7 @@ void ofApp::mouseDragged(int x, int y, int button) {
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button) {
 	bInDrag = false;
-    bPointSelected=false;
+    //pointSelected=false;
 }
 
 
