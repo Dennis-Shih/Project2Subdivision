@@ -1,13 +1,11 @@
 
-//--------------------------------------------------------------
-//
-//  Kevin M. Smith
-//
-//  Simple Octree Implementation 11/10/2020
-// 
-//  Copyright (c) by Kevin M. Smith
-//  Copying or use without permission is prohibited by law.
-//
+/*
+ Dennis Shih
+ Final proj
+ 12/12/2024
+ */
+
+
 #pragma once
 #include "ofMain.h"
 #include "box.h"

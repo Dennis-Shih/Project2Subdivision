@@ -1,5 +1,9 @@
 
-
+/*
+ Dennis Shih
+ Final proj
+ 12/12/2024
+ */
 
 #include "Octree.h"
  
@@ -176,13 +180,13 @@ void Octree::subdivide(const ofMesh & mesh, TreeNode & node, int numLevels, int 
         
     }
 }
-
+//ray-box intersect
 bool Octree::intersect(const Ray &ray, const TreeNode & node, TreeNode & nodeRtn) {
     bool intersects = false;
     
     if (node.box.intersect(ray, 0, 10000)){
         nodeRtn=node;
-        cout << node.children.empty()<<endl;
+        //cout << node.children.empty()<<endl;
         if (!node.children.empty()){
             for (int i = 0; i < node.children.size();i++){
                 
@@ -201,6 +205,7 @@ bool Octree::intersect(const Ray &ray, const TreeNode & node, TreeNode & nodeRtn
     return intersects;
 }
 
+//box-box intersect
 bool Octree::intersect(const Box &box, TreeNode & node, vector<Box> & boxListRtn) {
 	bool intersects = false;
     if (node.box.overlap(box)){
@@ -221,7 +226,7 @@ bool Octree::intersect(const Box &box, TreeNode & node, vector<Box> & boxListRtn
 
 void Octree::draw(TreeNode & node, int numLevels, int level) {
     if (level >= numLevels) return;
-    ofSetColor(colLayers[level]);
+    //ofSetColor(colLayers[level]);
         drawBox(node.box);
         level++;
         for (int i = 0; i < node.children.size(); i++) {

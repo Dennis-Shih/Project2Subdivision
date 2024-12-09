@@ -6,6 +6,11 @@
 #include "Octree.h"
 #include <glm/gtx/intersect.hpp>
 
+/*
+ Dennis Shih
+ Final proj
+ 12/12/2024
+ */
 
 class ofApp : public ofBaseApp{
 
@@ -51,6 +56,7 @@ class ofApp : public ofBaseApp{
 
 
 		ofxIntSlider numLevels;
+        ofxToggle timeInfo;
 		ofxPanel gui;
 
 		bool bAltKeyDown;
@@ -66,6 +72,27 @@ class ofApp : public ofBaseApp{
 		
 		bool bLanderLoaded;
 		bool bTerrainSelected;
+    
+        //Ship movement
+        bool bAnimateShip;
+        float moveXDir;
+        float moveYDir;
+        float moveZDir;
+        float rotDir;
+        float speed;
+        float rotSpeed;
+        float mass;
+        float damping;
+        ofVec3f accel;
+        ofVec3f forceX;
+        ofVec3f forceY;
+        ofVec3f forceZ;
+        ofVec3f forward;
+        ofVec3f velocity;
+        //integrate for moving side-to-side
+        void integrate();
+        //integrate up-down movement
+        void integrateVertical();
 	
 		ofVec3f selectedPoint;
 		ofVec3f intersectPoint;
