@@ -45,11 +45,11 @@ void ofApp::setup(){
         bLanderLoaded=true;
     }
     speed = 10;
-    rotSpeed = 0.5;
+    //rotSpeed = 0.5;
     mass=1.0;
     damping= 0.99;
     velocity = ofVec3f(0,0,0);
-    
+    accel = ofVec3f(0,0,0);
     lander.setScaleNormalization(false);
     lander.setPosition(0, 0, 0);
     
@@ -74,8 +74,11 @@ void ofApp::setup(){
 }
 
 void ofApp::integrate(){
+    float framerate = ofGetFrameRate();
+    if (framerate < 1.0) return;
+
+    float dt = 1.0 / framerate;
     
-    float dt = ofGetLastFrameTime();
     
     glm::vec3 landerPos = lander.getPosition();
     float dx=velocity.x * dt;
@@ -84,10 +87,23 @@ void ofApp::integrate(){
     lander.setPosition(landerPos.x+dx, landerPos.y+dy, landerPos.z+dz);
     accel=(1/mass)*(forceX+forceY+forceZ);
     
-    velocity+=accel*dt;
+    velocity=velocity +accel*dt;
     velocity *=damping;
-    cout << "velocity: "<< velocity << endl;
-    cout << "pos: "<<landerPos  << endl;
+    
+    rotSpeed+=rotDir*dt;
+    
+    lander.setRotation(0, lander.getRotationAngle(0) + rotSpeed, 0, 1, 0);
+    if (bAnimateShip){
+        cout << "dt: "<< dt << endl;
+        cout << "mass: "<< mass << endl;
+        cout << "accel: "<< accel << endl;
+        cout << "velocity: "<< velocity << endl;
+        cout << "pos: "<<landerPos  << endl;
+        cout << "rotSpeed: "<<rotSpeed  << endl;
+        cout << "rot angle: "<<lander.getRotationAngle(1)<<endl;
+    }
+    rotSpeed*=damping;
+    
 }
 
 void ofApp::update() {
@@ -144,7 +160,10 @@ void ofApp::draw() {
         ofMesh mesh;
         if (bLanderLoaded) {
             lander.drawFaces();
-            if (!bTerrainSelected) drawAxis(lander.getPosition());
+            drawAxis(lander.getPosition());
+            
+            //if (!bTerrainSelected) drawAxis(lander.getPosition());
+            /*
             if (bDisplayBBoxes) {
                 ofNoFill();
                 ofSetColor(ofColor::white);
@@ -156,6 +175,7 @@ void ofApp::draw() {
                     ofPopMatrix();
                 }
             }
+            */
             
             if (bLanderSelected) {
                 
@@ -272,9 +292,11 @@ void ofApp::keyPressed(int key) {
         case 'H':
             //h and g to rotate
         case 'h':
+            bAnimateShip=true;
             rotDir=1;
             break;
         case 'g':
+            bAnimateShip=true;
             rotDir=-1;
             break;
         case 'L':
@@ -311,25 +333,28 @@ void ofApp::keyPressed(int key) {
             break;
             //keys for ship movement
         case OF_KEY_SHIFT:
-            //bAnimateShip=true;
+            bAnimateShip=true;
             moveYDir=-1;
             break;
         case OF_KEY_TAB:
-            //bAnimateShip=true;
+            bAnimateShip=true;
             moveYDir=1;
             break;
         case OF_KEY_UP:
-            
+            bAnimateShip=true;
             moveXDir = 1;
             break;
         case OF_KEY_DOWN:
+            bAnimateShip=true;
             moveXDir = -1;
             
             break;
         case OF_KEY_LEFT:
+            bAnimateShip=true;
             moveZDir = -1;
             break;
         case OF_KEY_RIGHT:
+            bAnimateShip=true;
             moveZDir = 1;
             //player.rot+=pRotationSpeed;
             break;
@@ -365,20 +390,32 @@ void ofApp::keyReleased(int key) {
             break;
         case OF_KEY_SHIFT:
         case OF_KEY_TAB:
-            //bAnimateShip=false;
+            bAnimateShip=false;
             moveYDir=0;
             break;
         case OF_KEY_UP:
+            bAnimateShip=false;
             moveXDir = 0;
             break;
         case OF_KEY_DOWN:
+            bAnimateShip=false;
             moveXDir = 0;
             break;
         case OF_KEY_LEFT:
+            bAnimateShip=false;
             moveZDir = 0;
             break;
         case OF_KEY_RIGHT:
+            bAnimateShip=false;
             moveZDir = 0;
+            break;
+        case 'h':
+            bAnimateShip=false;
+            rotDir=0;
+            break;
+        case 'g':
+            bAnimateShip=false;
+            rotDir=0;
             break;
         default:
             break;
