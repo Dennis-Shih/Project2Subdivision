@@ -2,7 +2,7 @@
 /*
  Dennis Shih
  Final proj
- 12/12/2024
+ due: 12/12/2024
  */
 
 
@@ -14,6 +14,12 @@
 // setup scene, lighting, state and load geometry
 //
 void ofApp::setup(){
+    if (bgImg.load("img/background.jpg")){
+        cout << "background image loaded" <<endl;
+        bg.set(1000,64);
+        bg.mapTexCoordsFromTexture(bgImg.getTexture());
+    }
+
     bWireframe = false;
     bDisplayPoints = false;
     bAltKeyDown = false;
@@ -54,8 +60,7 @@ void ofApp::setup(){
     lander.setPosition(0, 0, 0);
     
     
-    // create sliders for testing
-    //
+    
     gui.setup();
     gui.add(numLevels.setup("Number of Octree Levels", 1, 1, 10));
     gui.add(timeInfo.setup("Timing info", false));
@@ -68,11 +73,21 @@ void ofApp::setup(){
     cout << "tree build time (ms): "<<ofGetElapsedTimeMillis()<<endl;
     cout << "Number of Verts: " << mars.getMesh(0).getNumVertices() << endl;
     
+    lz.setup();
+    
+    if (thrust.load("audio/thrusters-loop.wav")){
+        cout << "thrust sound loaded" << endl;
+    }
+    //thrust.setLoop(true);
+    //ofSoundStreamSetup(2, 0, 44100, 4000, 8);
+    
     
     
     
 }
-
+/*
+ Dennis Shih
+ */
 void ofApp::integrate(){
     float framerate = ofGetFrameRate();
     if (framerate < 1.0) return;
@@ -93,6 +108,7 @@ void ofApp::integrate(){
     rotSpeed+=rotDir*dt;
     
     lander.setRotation(0, lander.getRotationAngle(0) + rotSpeed, 0, 1, 0);
+    /*
     if (bAnimateShip){
         cout << "dt: "<< dt << endl;
         cout << "mass: "<< mass << endl;
@@ -102,17 +118,13 @@ void ofApp::integrate(){
         cout << "rotSpeed: "<<rotSpeed  << endl;
         cout << "rot angle: "<<lander.getRotationAngle(1)<<endl;
     }
+    */
     rotSpeed*=damping;
     
 }
 
 void ofApp::update() {
-    ofVec3f min = lander.getSceneMin() + lander.getPosition();
-    ofVec3f max = lander.getSceneMax() + lander.getPosition();
-    
-    Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
-    
-    //ship animation
+    //ship physics
     
     forceX =ofVec3f(1,0,0)* moveXDir* speed;
     forceY =  ofVec3f(0,1,0)* moveYDir* speed;
@@ -121,29 +133,64 @@ void ofApp::update() {
     integrate();
     
     //check if lander intersect octree boxes
+    ofVec3f min = lander.getSceneMin() + lander.getPosition();
+    ofVec3f max = lander.getSceneMax() + lander.getPosition();
+    
+    Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
     colBoxList.clear();
     if (octree.intersect(bounds, octree.root, colBoxList)){
         //cout << "intersect" << endl;
         //turbulence force
-    } //else cout << "no intersect" << endl;
-    //}
-    
-    
-    
-    
-    
+        
+    } else if (lz.overlap(bounds)){
+        //win
+        
+    } else if (showAgl) agl=getAgl(min);
+    cout<<"lz contact:" << lz.overlap(bounds)<<endl;
+
 }
+/*Ray collision for AGL
+ */
+float ofApp::getAgl(ofVec3f p0){
+    
+     //glm::vec3 landerPos = lander.getPosition();
+     glm::vec3 landerPos = glm::vec3(p0.x,p0.y,p0.z);
+     glm::vec3 dir = glm::vec3(0,-1,0);
+     
+     //Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+     
+     Ray agl=Ray(Vector3(landerPos.x, landerPos.y, landerPos.z),
+     Vector3(dir.x, dir.y, dir.z));
+     
+     bool aboveGround=octree.intersect(agl, octree.root, selectedNode);
+     if (aboveGround){
+         ofVec3f p = octree.mesh.getVertex(selectedNode.points[0]);
+         //display on screen
+         /*lander terrain agl dist:
+          */
+         return glm::length(landerPos - p);
+         
+     } else {
+         return -1;
+     }
+     
+     
+}
+
 //--------------------------------------------------------------
 void ofApp::draw() {
     
     ofBackground(ofColor::black);
-    
     glDepthMask(false);
     if (!bHide) gui.draw();
     glDepthMask(true);
     
     cam.begin();
     ofPushMatrix();
+    ofSetColor(ofColor::white);
+    bgImg.getTexture().bind();
+    bg.draw();
+    bgImg.getTexture().unbind();
     if (bWireframe) {                    // wireframe mode  (include axis)
         ofDisableLighting();
         ofSetColor(ofColor::slateGray);
@@ -228,6 +275,10 @@ void ofApp::draw() {
         ofSetColor(ofColor::white);
         octree.draw(numLevels, 0);
     }
+    //draw LZ
+    ofSetColor(ofColor::white);
+    
+    lz.draw();
     
     // if point selected, draw a sphere
     //
@@ -243,6 +294,16 @@ void ofApp::draw() {
     
     ofPopMatrix();
     cam.end();
+    
+    string str;
+    str += "Frame Rate: " + std::to_string(ofGetFrameRate());
+    if (showAgl){
+        string aglStr;
+        aglStr += "AGL: " + std::to_string(agl);
+        ofSetColor(ofColor::white);
+        ofDrawBitmapString(str, ofGetWindowWidth() -170, 15);
+        ofDrawBitmapString(aglStr, ofGetWindowWidth() -170, 30);
+    }
 }
 
 
@@ -276,6 +337,11 @@ void ofApp::drawAxis(ofVec3f location) {
 void ofApp::keyPressed(int key) {
     
     switch (key) {
+        //toggle agl calculation
+        case 'A':
+        case 'a':
+            showAgl=!showAgl;
+            break;
         case 'B':
         case 'b':
             bDisplayBBoxes = !bDisplayBBoxes;
@@ -289,16 +355,7 @@ void ofApp::keyPressed(int key) {
         case 'f':
             ofToggleFullscreen();
             break;
-        case 'H':
-            //h and g to rotate
-        case 'h':
-            bAnimateShip=true;
-            rotDir=1;
-            break;
-        case 'g':
-            bAnimateShip=true;
-            rotDir=-1;
-            break;
+        
         case 'L':
         case 'l':
             bDisplayLeafNodes = !bDisplayLeafNodes;
@@ -330,33 +387,53 @@ void ofApp::keyPressed(int key) {
             break;
         case OF_KEY_CONTROL:
             bCtrlKeyDown = true;
+            
             break;
-            //keys for ship movement
+        /* Keys for ship movement:
+         Tab/Shift to go up/down
+         Arrow keys to move for/back/left/right
+         h and g to rotate
+         */
         case OF_KEY_SHIFT:
-            bAnimateShip=true;
+            isShipThrusting=true;
+            if (!thrust.isPlaying()) {
+                thrust.play();
+            }
             moveYDir=-1;
             break;
         case OF_KEY_TAB:
-            bAnimateShip=true;
+            isShipThrusting=true;
+            if (!thrust.isPlaying()) {
+                thrust.play();
+            }
             moveYDir=1;
             break;
         case OF_KEY_UP:
-            bAnimateShip=true;
-            moveXDir = 1;
+            isShipThrusting=true;
+            moveZDir = -1;
             break;
         case OF_KEY_DOWN:
-            bAnimateShip=true;
-            moveXDir = -1;
+            isShipThrusting=true;
+            moveZDir = 1;
             
             break;
         case OF_KEY_LEFT:
-            bAnimateShip=true;
-            moveZDir = -1;
+            isShipThrusting=true;
+            moveXDir = -1;
             break;
         case OF_KEY_RIGHT:
-            bAnimateShip=true;
-            moveZDir = 1;
+            isShipThrusting=true;
+            moveXDir = 1;
             //player.rot+=pRotationSpeed;
+            break;
+        case 'H':
+        case 'h':
+            isShipThrusting=true;
+            rotDir=1;
+            break;
+        case 'g':
+            isShipThrusting=true;
+            rotDir=-1;
             break;
         case OF_KEY_DEL:
             break;
@@ -390,31 +467,32 @@ void ofApp::keyReleased(int key) {
             break;
         case OF_KEY_SHIFT:
         case OF_KEY_TAB:
-            bAnimateShip=false;
+            isShipThrusting=false;
             moveYDir=0;
+            thrust.stop();
             break;
         case OF_KEY_UP:
-            bAnimateShip=false;
-            moveXDir = 0;
+            isShipThrusting=false;
+            moveZDir = 0;
             break;
         case OF_KEY_DOWN:
-            bAnimateShip=false;
-            moveXDir = 0;
+            isShipThrusting=false;
+            moveZDir = 0;
             break;
         case OF_KEY_LEFT:
-            bAnimateShip=false;
-            moveZDir = 0;
+            isShipThrusting=false;
+            moveXDir = 0;
             break;
         case OF_KEY_RIGHT:
-            bAnimateShip=false;
-            moveZDir = 0;
+            isShipThrusting=false;
+            moveXDir = 0;
             break;
         case 'h':
-            bAnimateShip=false;
+            isShipThrusting=false;
             rotDir=0;
             break;
         case 'g':
-            bAnimateShip=false;
+            isShipThrusting=false;
             rotDir=0;
             break;
         default:
@@ -440,7 +518,6 @@ void ofApp::mousePressed(int x, int y, int button) {
     if (cam.getMouseInputEnabled()) return;
     
     
-    
     // if rover is loaded, test for selection
     //
     if (bLanderLoaded) {
@@ -464,12 +541,13 @@ void ofApp::mousePressed(int x, int y, int button) {
         }
     }
     else {
+        /*
         ofVec3f p;
         raySelectWithOctree(p);
-        
+        */
     }
 }
-
+/*
 bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
     ofVec3f mouse(mouseX, mouseY);
     ofVec3f rayPoint = cam.screenToWorld(mouse);
@@ -480,9 +558,11 @@ bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
     
     ofResetElapsedTimeCounter();
     pointSelected = octree.intersect(ray, octree.root, selectedNode);
+    
     if (timeInfo){
         cout << "ray search time (ms): "<<ofGetElapsedTimeMillis()<<endl;
     }
+    
     
     if (pointSelected) {
         pointRet = octree.mesh.getVertex(selectedNode.points[0]);
@@ -490,7 +570,7 @@ bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
     }
     return pointSelected;
 }
-
+*/
 
 
 
@@ -523,27 +603,21 @@ void ofApp::mouseDragged(int x, int y, int button) {
             cout << "intersect" << endl;
         } else cout << "no intersect" << endl;
         
-        /*
-         if (bounds.overlap(testBox)) {
-         cout << "overlap" << endl;
-         }
-         else {
-         cout << "no overlap" << endl;
-         }*/
-        
+       
         
     }
     else {
+        /*
         ofVec3f p;
         raySelectWithOctree(p);
-        
+        */
     }
 }
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button) {
     bInDrag = false;
-    //pointSelected=false;
+    pointSelected=false;
 }
 
 
@@ -739,4 +813,9 @@ glm::vec3 ofApp::getMousePointOnPlane(glm::vec3 planePt, glm::vec3 planeNorm) {
         return intersectPoint;
     }
     else return glm::vec3(0, 0, 0);
+}
+
+void ofApp::exit(){
+    thrust.stop();
+    ofExit();
 }

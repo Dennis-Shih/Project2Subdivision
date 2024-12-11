@@ -45,8 +45,7 @@ class Box {
 		return allInside;
 	}
 
-	// implement for Homework Project
-	//
+	
 	 bool overlap(const Box &box) {
          bool overlapX = parameters[0].x() <=box.parameters[1].x() && parameters[1].x() >=box.parameters[0].x();
          bool overlapY = parameters[0].y() <=box.parameters[1].y() && parameters[1].y() >=box.parameters[0].y();

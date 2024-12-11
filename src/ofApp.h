@@ -4,9 +4,9 @@
 #include "ofxGui.h"
 #include "ofxAssimpModelLoader.h"
 #include "Octree.h"
+#include "LandingZone.h"
 #include <glm/gtx/intersect.hpp>
-
-/*
+#include "ParticleEmitter.h"/*
  Dennis Shih
  Final proj
  12/12/2024
@@ -46,7 +46,8 @@ class ofApp : public ofBaseApp{
 		ofxAssimpModelLoader mars, lander;
 		ofLight light;
 		Box boundingBox, landerBounds;
-		Box testBox;
+        LandingZone lz;
+
 		vector<Box> colBoxList;
 		bool bLanderSelected = false;
 		Octree octree;
@@ -73,8 +74,9 @@ class ofApp : public ofBaseApp{
 		bool bLanderLoaded;
 		bool bTerrainSelected;
     
-        //Ship movement
-        bool bAnimateShip;
+        
+        bool showAgl;
+        bool isShipThrusting;
         float moveXDir;
         float moveYDir;
         float moveZDir;
@@ -89,15 +91,23 @@ class ofApp : public ofBaseApp{
         ofVec3f forceZ;
         ofVec3f forward;
         ofVec3f velocity;
-        //integrate for moving side-to-side
-        void integrate();
-        //integrate up-down movement
-        void integrateVertical();
-	
 		ofVec3f selectedPoint;
 		ofVec3f intersectPoint;
-
+        
+        
+    
+        ofSoundPlayer thrust;
+        ofImage bgImg;
+        ofSpherePrimitive bg;
+        //thrust and explosion particle emitters
+        ParticleEmitter tem;
+        ParticleEmitter explEm;
 		vector<Box> bboxList;
+        
+        void integrate();
+        float getAgl(ofVec3f p0);
+        float agl;
+        void exit();
         
 		const float selectionRange = 4.0;
 };
