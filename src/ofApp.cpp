@@ -52,12 +52,20 @@ void ofApp::setup(){
     }
     speed = 10;
     //rotSpeed = 0.5;
-    mass=1.0;
+    mass=2.0;
     damping= 0.99;
     velocity = ofVec3f(0,0,0);
     accel = ofVec3f(0,0,0);
+    gravMag=1;
+    restitution=1;
     lander.setScaleNormalization(false);
-    lander.setPosition(0, 0, 0);
+    lander.setPosition(0, 30, 0);
+    
+    trackingCam.setPosition(-40,5,50);
+    
+    //trackingCam.setPosition(0,lander.getPosition().y,50);
+    onboardCam.rotate(-90, 1, 0, 0);
+    camView=1;
     
     
     
@@ -80,7 +88,23 @@ void ofApp::setup(){
     }
     //thrust.setLoop(true);
     //ofSoundStreamSetup(2, 0, 44100, 4000, 8);
+    forceX =ofVec3f(1,0,0)* moveXDir* speed;
+    forceY =  ofVec3f(0,1,0)* moveYDir* speed;
+    forceZ =  ofVec3f(0,0,1)* moveZDir* speed;
+    forceGrav =  ofVec3f(0,-1,0) * gravMag;
+    //turbulence
+    tmin=ofVec3f(-2, -2, -2);
+    tmax=ofVec3f(2, 2, 2);
     
+    landerForces.push_back(forceX);
+    landerForces.push_back(forceY);
+    landerForces.push_back(forceZ);
+    landerForces.push_back(forceGrav);
+    landerForces.push_back(forceImp);
+    
+    ParticleSystem *sys = explEm.sys;
+    
+    //sys->addForce(new TurbulenceForce(ofVec3f(-3, -1, -1), ofVec3f(3, 1, 1)));
     
     
     
@@ -100,7 +124,7 @@ void ofApp::integrate(){
     float dy=velocity.y * dt;
     float dz=velocity.z * dt;
     lander.setPosition(landerPos.x+dx, landerPos.y+dy, landerPos.z+dz);
-    accel=(1/mass)*(forceX+forceY+forceZ);
+    accel=(1/mass)*(forceX+forceY+forceZ+forceGrav);
     
     velocity=velocity +accel*dt;
     velocity *=damping;
@@ -108,17 +132,7 @@ void ofApp::integrate(){
     rotSpeed+=rotDir*dt;
     
     lander.setRotation(0, lander.getRotationAngle(0) + rotSpeed, 0, 1, 0);
-    /*
-    if (bAnimateShip){
-        cout << "dt: "<< dt << endl;
-        cout << "mass: "<< mass << endl;
-        cout << "accel: "<< accel << endl;
-        cout << "velocity: "<< velocity << endl;
-        cout << "pos: "<<landerPos  << endl;
-        cout << "rotSpeed: "<<rotSpeed  << endl;
-        cout << "rot angle: "<<lander.getRotationAngle(1)<<endl;
-    }
-    */
+    
     rotSpeed*=damping;
     
 }
@@ -126,9 +140,12 @@ void ofApp::integrate(){
 void ofApp::update() {
     //ship physics
     
-    forceX =ofVec3f(1,0,0)* moveXDir* speed;
-    forceY =  ofVec3f(0,1,0)* moveYDir* speed;
-    forceZ =  ofVec3f(0,0,1)* moveZDir* speed;
+    forceX =ofVec3f(1,0,0)* moveXDir* speed + ofRandom(tmin.x, tmax.x);
+    forceY =  ofVec3f(0,1,0)* moveYDir* speed + ofRandom(tmin.y, tmax.y);
+    forceZ =  ofVec3f(0,0,1)* moveZDir* speed + ofRandom(tmin.z, tmax.z);;
+    forceGrav=ofVec3f(0,-1,0)*gravMag * mass;
+    
+  
     
     integrate();
     
@@ -140,13 +157,15 @@ void ofApp::update() {
     colBoxList.clear();
     if (octree.intersect(bounds, octree.root, colBoxList)){
         //cout << "intersect" << endl;
-        //turbulence force
+        checkCollisions();
         
     } else if (lz.overlap(bounds)){
         //win
         
     } else if (showAgl) agl=getAgl(min);
     cout<<"lz contact:" << lz.overlap(bounds)<<endl;
+    onboardCam.setPosition(ofVec3f(max.x, max.y+3.25, max.z));
+    
 
 }
 /*Ray collision for AGL
@@ -177,6 +196,23 @@ float ofApp::getAgl(ofVec3f p0){
      
 }
 
+/*
+ Func to apply impulse force if ship collides terrain, checks if ship collides too fast
+ */
+void ofApp::checkCollisions() {
+    
+    if (velocity.y>=30) {
+        //explode or smth
+    }
+    
+    ofVec3f norm = ofVec3f(0, 1, 0);
+    ofVec3f f = (restitution + 1.0)*((-velocity.dot(norm))*norm);
+    forceImp=f;
+    velocity += forceImp;
+    cout << forceImp << endl;
+    cout << velocity << endl;
+}
+
 //--------------------------------------------------------------
 void ofApp::draw() {
     
@@ -185,7 +221,21 @@ void ofApp::draw() {
     if (!bHide) gui.draw();
     glDepthMask(true);
     
-    cam.begin();
+    switch (camView){
+        case 1:
+            cam.begin();
+            break;
+        case 2:
+            trackingCam.begin();
+            break;
+        case 3:
+            onboardCam.begin();
+            break;
+        default:
+            cam.begin();
+            break;
+    }
+    //cam.begin();
     ofPushMatrix();
     ofSetColor(ofColor::white);
     bgImg.getTexture().bind();
@@ -207,22 +257,8 @@ void ofApp::draw() {
         ofMesh mesh;
         if (bLanderLoaded) {
             lander.drawFaces();
-            drawAxis(lander.getPosition());
+            //drawAxis(lander.getPosition());
             
-            //if (!bTerrainSelected) drawAxis(lander.getPosition());
-            /*
-            if (bDisplayBBoxes) {
-                ofNoFill();
-                ofSetColor(ofColor::white);
-                for (int i = 0; i < lander.getNumMeshes(); i++) {
-                    ofPushMatrix();
-                    ofMultMatrix(lander.getModelMatrix());
-                    //ofRotate(-90, 1, 0, 0);
-                    Octree::drawBox(bboxList[i]);
-                    ofPopMatrix();
-                }
-            }
-            */
             
             if (bLanderSelected) {
                 
@@ -280,26 +316,33 @@ void ofApp::draw() {
     
     lz.draw();
     
-    // if point selected, draw a sphere
-    //
-    /*
-    if (pointSelected) {
-        ofVec3f p = octree.mesh.getVertex(selectedNode.points[0]);
-        ofVec3f d = p - cam.getPosition();
-        ofSetColor(ofColor::lightGreen);
-        ofDrawSphere(p, .02 * d.length());
-    }
-    */
+    
     
     
     ofPopMatrix();
-    cam.end();
+    
+    switch (camView){
+        case 1:
+            cam.end();
+            break;
+        case 2:
+            trackingCam.end();
+            break;
+        case 3:
+            onboardCam.end();
+            break;
+        default:
+            cam.end();
+            break;
+    }
+    
+    //cam.end();
     
     string str;
     str += "Frame Rate: " + std::to_string(ofGetFrameRate());
     if (showAgl){
         string aglStr;
-        aglStr += "AGL: " + std::to_string(agl);
+        aglStr += "AGL: " + std::to_string(agl) + "m";
         ofSetColor(ofColor::white);
         ofDrawBitmapString(str, ofGetWindowWidth() -170, 15);
         ofDrawBitmapString(aglStr, ofGetWindowWidth() -170, 30);
@@ -348,8 +391,10 @@ void ofApp::keyPressed(int key) {
             break;
         case 'C':
         case 'c':
-            if (cam.getMouseInputEnabled()) cam.disableMouseInput();
-            else cam.enableMouseInput();
+            if (camView==1){
+                if (cam.getMouseInputEnabled()) cam.disableMouseInput();
+                else cam.enableMouseInput();
+            }
             break;
         case 'F':
         case 'f':
@@ -365,7 +410,7 @@ void ofApp::keyPressed(int key) {
             bDisplayOctree = !bDisplayOctree;
             break;
         case 'r':
-            cam.reset();
+            if (camView==1) cam.reset();
             break;
         case 's':
             savePicture();
@@ -373,7 +418,24 @@ void ofApp::keyPressed(int key) {
         case 't':
             setCameraTarget();
             break;
-        case 'u':
+        /*
+         Camera views:
+         1 - ofEasyCam
+         2 - tracking camera
+         3 - onboard camera
+         4 - top-down camera (maybe moveable)
+         */
+        case '1':
+            camView=1;
+            break;
+        case '2':
+            camView=2;
+            break;
+        case '3':
+            camView=3;
+            break;
+        case '4':
+            camView=4;
             break;
         case 'v':
             togglePointsDisplay();

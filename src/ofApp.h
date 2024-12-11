@@ -41,8 +41,11 @@ class ofApp : public ofBaseApp{
 		bool mouseIntersectPlane(ofVec3f planePoint, ofVec3f planeNorm, ofVec3f &point);
 		bool raySelectWithOctree(ofVec3f &pointRet);
 		glm::vec3 getMousePointOnPlane(glm::vec3 p , glm::vec3 n);
-
+        
+       
 		ofEasyCam cam;
+        
+    
 		ofxAssimpModelLoader mars, lander;
 		ofLight light;
 		Box boundingBox, landerBounds;
@@ -83,12 +86,26 @@ class ofApp : public ofBaseApp{
         float rotDir;
         float speed;
         float rotSpeed;
+    
         float mass;
         float damping;
-        ofVec3f accel;
+        float gravMag;
+        float restitution;
+        
+        int camView;
+        ofCamera trackingCam;
+        ofCamera onboardCam;
+    
         ofVec3f forceX;
         ofVec3f forceY;
         ofVec3f forceZ;
+        ofVec3f forceGrav;
+        ofVec3f forceImp;
+        //ofVec3f forceTurb;
+        ofVec3f tmin;
+        ofVec3f tmax;
+    
+        ofVec3f accel;
         ofVec3f forward;
         ofVec3f velocity;
 		ofVec3f selectedPoint;
@@ -103,7 +120,12 @@ class ofApp : public ofBaseApp{
         ParticleEmitter tem;
         ParticleEmitter explEm;
 		vector<Box> bboxList;
+        vector<ofVec3f> landerForces;
+    
+        ParticleSystem *sys;
+
         
+        void checkCollisions();
         void integrate();
         float getAgl(ofVec3f p0);
         float agl;
@@ -111,3 +133,4 @@ class ofApp : public ofBaseApp{
         
 		const float selectionRange = 4.0;
 };
+
