@@ -91,6 +91,7 @@ class ofApp : public ofBaseApp{
         float damping;
         float gravMag;
         float restitution;
+    
         
         int camView;
         ofCamera trackingCam;
@@ -114,6 +115,7 @@ class ofApp : public ofBaseApp{
         
     
         ofSoundPlayer thrust;
+        ofSoundPlayer explosion;
         ofImage bgImg;
         ofSpherePrimitive bg;
         //thrust and explosion particle emitters
@@ -122,7 +124,7 @@ class ofApp : public ofBaseApp{
 		vector<Box> bboxList;
         vector<ofVec3f> landerForces;
     
-        ParticleSystem *sys;
+        
 
         
         void checkCollisions();
@@ -131,12 +133,20 @@ class ofApp : public ofBaseApp{
         float agl;
         void exit();
         void loadVbo();
+        void loadVboExpl();
+        void resetGame();
         ofTexture particleTex;
         ofVbo vbo;
+        ofVbo vboExpl;
         ofShader shader;
-    
+        ImpulseRadialForce *radialForce;
         float tPartRadius;
     
+        float tFuelUsed;
+        float fuelLimit;
+        bool isGameRunning;
+        bool isGameWon;
+        bool isGameLost;
     
 };
 

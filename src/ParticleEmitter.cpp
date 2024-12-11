@@ -67,7 +67,7 @@ void ParticleEmitter::draw() {
 	sys->draw();  
 }
 void ParticleEmitter::start() {
-	if (started) return;
+	//if (started) return;
 	started = true;
 	lastSpawned = ofGetElapsedTimeMillis();
 }
@@ -120,10 +120,13 @@ void ParticleEmitter::spawn(float time) {
 	switch (type) {
 	case RadialEmitter:
 	  {
-		ofVec3f dir = ofVec3f(ofRandom(-1, 1), ofRandom(-1, 1), ofRandom(-1, 1));
-		float speed = velocity.length();
-		particle.velocity = dir.getNormalized() * speed;
-		particle.position.set(position);
+          ofColor col(255,50,50);
+          ofVec3f dir = ofVec3f(ofRandom(-1, 1), ofRandom(-1, 1), 0);
+          float speed = velocity.length()*2;
+          particle.velocity = dir.getNormalized() * speed;
+          particle.position.set(position);
+          particle.forces+=particle.velocity*dir.getNormalized();
+          particle.color=col;
 	  }
 	break;
 	case SphereEmitter:
@@ -137,7 +140,7 @@ void ParticleEmitter::spawn(float time) {
 		ofVec3f dir = ofVec3f(ofRandom(-1, 1), ofRandom(-.2, .2), ofRandom(-1, 1));
 	//	dir.y = 0; 
 		particle.position.set(position + (dir.normalized() * radius));
-		particle.velocity = velocity;
+		particle.velocity = -velocity;
 	  }
 	}
 

@@ -92,9 +92,26 @@ void ofApp::setup(){
     cout << "Number of Verts: " << mars.getMesh(0).getNumVertices() << endl;
     
     lz.setup();
-    tem.setEmitterType(RadialEmitter);
+    tem.setEmitterType(DiscEmitter);
+    tem.sys->addForce(new ThrusterForce(velocity));
+    tem.setOneShot(true);
+    tem.setGroupSize(20);
+    
+    radialForce = new ImpulseRadialForce(10);
+    radialForce->setHeight(100);
+    explEm.setEmitterType(RadialEmitter);
+    explEm.sys->addForce(radialForce);
+    explEm.setGroupSize(500);
+    explEm.setVelocity(ofVec3f(0, 10, 0));
+    explEm.setParticleRadius(100);
+    explEm.setOneShot(true);
+    
     if (thrust.load("audio/thrusters-loop.wav")){
         cout << "thrust sound loaded" << endl;
+    }
+    
+    if (explosion.load("audio/explosion.wav")){
+        cout << "explosion sound loaded" << endl;
     }
     //thrust.setLoop(true);
     //ofSoundStreamSetup(2, 0, 44100, 4000, 8);
@@ -112,8 +129,9 @@ void ofApp::setup(){
     landerForces.push_back(forceGrav);
     landerForces.push_back(forceImp);
     
-    ParticleSystem *sys = explEm.sys;
+    //ParticleSystem *sys = explEm.sys;
     tPartRadius=15;
+    fuelLimit=120;
     
     //sys->addForce(new TurbulenceForce(ofVec3f(-3, -1, -1), ofVec3f(3, 1, 1)));
     
@@ -126,16 +144,41 @@ void ofApp::loadVbo() {
 
     vector<ofVec3f> sizes;
     vector<ofVec3f> points;
+    
+   
     for (int i = 0; i < tem.sys->particles.size(); i++) {
         points.push_back(tem.sys->particles[i].position);
         sizes.push_back(ofVec3f(tPartRadius));
     }
+    
     // upload the data to the vbo
     //
     int total = (int)points.size();
+    
     vbo.clear();
     vbo.setVertexData(&points[0], total, GL_STATIC_DRAW);
     vbo.setNormalData(&sizes[0], total, GL_STATIC_DRAW);
+}
+
+void ofApp::loadVboExpl() {
+    if (explEm.sys->particles.size() < 1) return;
+
+    vector<ofVec3f> sizes;
+    vector<ofVec3f> points;
+    
+   
+    for (int i = 0; i < explEm.sys->particles.size(); i++) {
+        points.push_back(explEm.sys->particles[i].position);
+        sizes.push_back(ofVec3f(30));
+    }
+    
+    // upload the data to the vbo
+    //
+    int total = (int)points.size();
+    
+    vboExpl.clear();
+    vboExpl.setVertexData(&points[0], total, GL_STATIC_DRAW);
+    vboExpl.setNormalData(&sizes[0], total, GL_STATIC_DRAW);
 }
 
 /*
@@ -167,6 +210,12 @@ void ofApp::integrate(){
 }
 
 void ofApp::update() {
+    
+    if (!isGameRunning) {
+        
+        ofClear(0, 0, 0);
+        return;
+    }
     //ship physics
     tem.setPosition(lander.getPosition());
     forceX =ofVec3f(1,0,0)* moveXDir* speed + ofRandom(tmin.x, tmax.x);
@@ -195,8 +244,14 @@ void ofApp::update() {
     //cout<<"lz contact:" << lz.overlap(bounds)<<endl;
     onboardCam.setPosition(ofVec3f(max.x, max.y+3.25, max.z));
     tem.update();
+    explEm.update();
+    //fuel
+    if (isShipThrusting){
+        tFuelUsed+= ofGetLastFrameTime();
+        
+        
+    }
     
-
 }
 /*Ray collision for AGL
  */
@@ -231,16 +286,21 @@ float ofApp::getAgl(ofVec3f p0){
  */
 void ofApp::checkCollisions() {
     
-    if (velocity.y>=30) {
-        //explode or smth
+    if (velocity.y<=-5) {
+        //isGameLost=true;
+        //isGameRunning=false;
+        explEm.setPosition(lander.getPosition());
+        explEm.start();
+        explosion.play();
+        
     }
     
     ofVec3f norm = ofVec3f(0, 1, 0);
     ofVec3f f = (restitution + 1.0)*((-velocity.dot(norm))*norm);
     forceImp=f;
     velocity += forceImp;
-    cout << forceImp << endl;
-    cout << velocity << endl;
+    
+    
 }
 
 //--------------------------------------------------------------
@@ -355,6 +415,7 @@ void ofApp::draw() {
     }
     
     loadVbo();
+    loadVboExpl();
     glDepthMask(GL_FALSE);
     ofSetColor(255, 100, 90);
     
@@ -362,9 +423,11 @@ void ofApp::draw() {
     ofEnablePointSprites();
     shader.begin();
     cam.begin();
-    //tem.draw();
+    
     particleTex.bind();
     vbo.draw(GL_POINTS, 0, (int)tem.sys->particles.size());
+    vboExpl.draw(GL_POINTS, 0, (int)explEm.sys->particles.size());
+    //vbo.draw(GL_POINTS, 0, (int)explEm.sys->particles.size());
     particleTex.unbind();
     cam.end();
     shader.end();
@@ -379,15 +442,27 @@ void ofApp::draw() {
     
     
     
-    
-    string str;
-    str += "Frame Rate: " + std::to_string(ofGetFrameRate());
-    if (showAgl){
-        string aglStr;
-        aglStr += "AGL: " + std::to_string(agl) + "m";
+    if (!isGameRunning) {
+        string instructions = "Space to start\n"
+        "Arrow Keys to fly horizontally"
+        "\nTab/Shift to increase/decrease altitude\n g/h keys to rotate vehicle \n"
+        "Number keys for cameras: \n 1: Default easyCam\n"
+        " 2: tracking cam\n 3: Onboard cam";
+        ofDrawBitmapString(instructions, ofGetWindowWidth()/2, 40);
+    } else {
+        string str;
+        str += "Frame Rate: " + std::to_string(ofGetFrameRate());
         ofSetColor(ofColor::white);
         ofDrawBitmapString(str, ofGetWindowWidth() -170, 15);
-        ofDrawBitmapString(aglStr, ofGetWindowWidth() -170, 30);
+        float f=fuelLimit-tFuelUsed;
+        string fuel = "Fuel remaining: " + ofToString(f) + "";
+        ofDrawBitmapString(fuel, ofGetWindowWidth() -170, 30);
+        if (showAgl){
+            string aglStr;
+            aglStr += "AGL: " + std::to_string(agl) + "m";
+            
+            ofDrawBitmapString(aglStr, ofGetWindowWidth() -170, 45);
+        }
     }
 }
 
@@ -416,6 +491,12 @@ void ofApp::drawAxis(ofVec3f location) {
     ofDrawLine(ofPoint(0, 0, 0), ofPoint(0, 0, 1));
     
     ofPopMatrix();
+}
+
+void ofApp::resetGame(){
+    ofResetElapsedTimeCounter();
+    
+    setup();
 }
 
 
@@ -496,46 +577,76 @@ void ofApp::keyPressed(int key) {
          h and g to rotate
          */
         case OF_KEY_SHIFT:
-            tem.start();
-            isShipThrusting=true;
-            if (!thrust.isPlaying()) {
-                thrust.play();
+            if (fuelLimit>=tFuelUsed){
+                isShipThrusting=true;
+                if (!thrust.isPlaying()) {
+                    thrust.play();
+                }
+                moveYDir=-1;
             }
-            moveYDir=-1;
             break;
         case OF_KEY_TAB:
-            isShipThrusting=true;
-            if (!thrust.isPlaying()) {
-                thrust.play();
+            if (fuelLimit>=tFuelUsed){
+                tem.start();
+                
+                isShipThrusting=true;
+                if (!thrust.isPlaying()) {
+                    thrust.play();
+                }
+                moveYDir=1;
             }
-            moveYDir=1;
             break;
         case OF_KEY_UP:
-            isShipThrusting=true;
-            moveZDir = -1;
+            if (fuelLimit>=tFuelUsed){
+                tem.start();
+                
+                isShipThrusting=true;
+                moveZDir = -1;
+            }
             break;
         case OF_KEY_DOWN:
-            isShipThrusting=true;
-            moveZDir = 1;
-            
+            if (fuelLimit>=tFuelUsed){
+                tem.start();
+                isShipThrusting=true;
+                moveZDir = 1;
+            }
             break;
         case OF_KEY_LEFT:
-            isShipThrusting=true;
-            moveXDir = -1;
+            if (fuelLimit>=tFuelUsed){
+                tem.start();
+                isShipThrusting=true;
+                moveXDir = -1;
+            }
             break;
         case OF_KEY_RIGHT:
-            isShipThrusting=true;
-            moveXDir = 1;
+            if (fuelLimit>=tFuelUsed){
+                tem.start();
+                isShipThrusting=true;
+                moveXDir = 1;
+            }
             //player.rot+=pRotationSpeed;
             break;
         case 'H':
         case 'h':
-            isShipThrusting=true;
+            //isShipThrusting=true;
             rotDir=1;
             break;
         case 'g':
-            isShipThrusting=true;
+            //isShipThrusting=true;
             rotDir=-1;
+            break;
+        case ' ':
+            if (isGameLost){
+                isGameLost = false;
+                
+                resetGame();
+            }
+            isGameRunning=true;
+            
+            /* testing
+            explEm.sys->reset();
+            explEm.start();
+            */
             break;
         case OF_KEY_DEL:
             break;
