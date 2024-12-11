@@ -19,7 +19,7 @@ void ofApp::setup(){
         bg.set(1000,64);
         bg.mapTexCoordsFromTexture(bgImg.getTexture());
     }
-
+    
     bWireframe = false;
     bDisplayPoints = false;
     bAltKeyDown = false;
@@ -64,10 +64,20 @@ void ofApp::setup(){
     trackingCam.setPosition(-40,5,50);
     
     //trackingCam.setPosition(0,lander.getPosition().y,50);
-    onboardCam.rotate(-90, 1, 0, 0);
+    onboardCam.rotateDeg(-90, 1, 0, 0);
     camView=1;
     
-    
+    ofDisableArbTex();
+    if (!ofLoadImage(particleTex, "img/dot.png")) {
+        cout << "Particle Texture File: img/dot.png not found" << endl;
+        ofExit();
+    }
+
+    #ifdef TARGET_OPENGLES
+        shader.load("shaders_gles/shader");
+    #else
+        shader.load("shaders/shader");
+    #endif
     
     gui.setup();
     gui.add(numLevels.setup("Number of Octree Levels", 1, 1, 10));
@@ -82,7 +92,7 @@ void ofApp::setup(){
     cout << "Number of Verts: " << mars.getMesh(0).getNumVertices() << endl;
     
     lz.setup();
-    
+    tem.setEmitterType(RadialEmitter);
     if (thrust.load("audio/thrusters-loop.wav")){
         cout << "thrust sound loaded" << endl;
     }
@@ -103,12 +113,31 @@ void ofApp::setup(){
     landerForces.push_back(forceImp);
     
     ParticleSystem *sys = explEm.sys;
+    tPartRadius=15;
     
     //sys->addForce(new TurbulenceForce(ofVec3f(-3, -1, -1), ofVec3f(3, 1, 1)));
     
     
     
 }
+
+void ofApp::loadVbo() {
+    if (tem.sys->particles.size() < 1) return;
+
+    vector<ofVec3f> sizes;
+    vector<ofVec3f> points;
+    for (int i = 0; i < tem.sys->particles.size(); i++) {
+        points.push_back(tem.sys->particles[i].position);
+        sizes.push_back(ofVec3f(tPartRadius));
+    }
+    // upload the data to the vbo
+    //
+    int total = (int)points.size();
+    vbo.clear();
+    vbo.setVertexData(&points[0], total, GL_STATIC_DRAW);
+    vbo.setNormalData(&sizes[0], total, GL_STATIC_DRAW);
+}
+
 /*
  Dennis Shih
  */
@@ -139,7 +168,7 @@ void ofApp::integrate(){
 
 void ofApp::update() {
     //ship physics
-    
+    tem.setPosition(lander.getPosition());
     forceX =ofVec3f(1,0,0)* moveXDir* speed + ofRandom(tmin.x, tmax.x);
     forceY =  ofVec3f(0,1,0)* moveYDir* speed + ofRandom(tmin.y, tmax.y);
     forceZ =  ofVec3f(0,0,1)* moveZDir* speed + ofRandom(tmin.z, tmax.z);;
@@ -163,8 +192,9 @@ void ofApp::update() {
         //win
         
     } else if (showAgl) agl=getAgl(min);
-    cout<<"lz contact:" << lz.overlap(bounds)<<endl;
+    //cout<<"lz contact:" << lz.overlap(bounds)<<endl;
     onboardCam.setPosition(ofVec3f(max.x, max.y+3.25, max.z));
+    tem.update();
     
 
 }
@@ -217,9 +247,7 @@ void ofApp::checkCollisions() {
 void ofApp::draw() {
     
     ofBackground(ofColor::black);
-    glDepthMask(false);
-    if (!bHide) gui.draw();
-    glDepthMask(true);
+    
     
     switch (camView){
         case 1:
@@ -227,6 +255,7 @@ void ofApp::draw() {
             break;
         case 2:
             trackingCam.begin();
+            trackingCam.lookAt(lander.getPosition());
             break;
         case 3:
             onboardCam.begin();
@@ -288,13 +317,6 @@ void ofApp::draw() {
         mars.drawVertices();
     }
     
-    // highlight selected point (draw sphere around selected point)
-    //
-    /*if (bPointSelected) {
-        ofSetColor(ofColor::blue);
-        ofDrawSphere(selectedPoint, .1);
-    }*/
-    
     
     // recursively draw octree
     //
@@ -315,10 +337,6 @@ void ofApp::draw() {
     ofSetColor(ofColor::white);
     
     lz.draw();
-    
-    
-    
-    
     ofPopMatrix();
     
     switch (camView){
@@ -336,7 +354,31 @@ void ofApp::draw() {
             break;
     }
     
+    loadVbo();
+    glDepthMask(GL_FALSE);
+    ofSetColor(255, 100, 90);
+    
+    ofEnableBlendMode(OF_BLENDMODE_ADD);
+    ofEnablePointSprites();
+    shader.begin();
+    cam.begin();
+    //tem.draw();
+    particleTex.bind();
+    vbo.draw(GL_POINTS, 0, (int)tem.sys->particles.size());
+    particleTex.unbind();
+    cam.end();
+    shader.end();
+    ofDisablePointSprites();
+    ofDisableBlendMode();
+    ofEnableAlphaBlending();
+    glDepthMask(GL_TRUE);
     //cam.end();
+    glDepthMask(false);
+    if (!bHide) gui.draw();
+    glDepthMask(true);
+    
+    
+    
     
     string str;
     str += "Frame Rate: " + std::to_string(ofGetFrameRate());
@@ -415,9 +457,6 @@ void ofApp::keyPressed(int key) {
         case 's':
             savePicture();
             break;
-        case 't':
-            setCameraTarget();
-            break;
         /*
          Camera views:
          1 - ofEasyCam
@@ -457,6 +496,7 @@ void ofApp::keyPressed(int key) {
          h and g to rotate
          */
         case OF_KEY_SHIFT:
+            tem.start();
             isShipThrusting=true;
             if (!thrust.isPlaying()) {
                 thrust.play();

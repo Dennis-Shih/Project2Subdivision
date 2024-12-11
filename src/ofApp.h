@@ -130,7 +130,13 @@ class ofApp : public ofBaseApp{
         float getAgl(ofVec3f p0);
         float agl;
         void exit();
-        
-		const float selectionRange = 4.0;
+        void loadVbo();
+        ofTexture particleTex;
+        ofVbo vbo;
+        ofShader shader;
+    
+        float tPartRadius;
+    
+    
 };
 
