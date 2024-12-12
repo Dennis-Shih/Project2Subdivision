@@ -216,7 +216,7 @@ void ofApp::integrate(){
     rotSpeed+=rotDir*dt;
     
     lander.setRotation(0, lander.getRotationAngle(0) + rotSpeed, 0, 1, 0);
-    
+    onboardCam.rotateDeg(rotSpeed, 0, 1, 0);
     rotSpeed*=damping;
     
 }
@@ -225,6 +225,7 @@ void ofApp::update() {
     explEm.update();
     if (!isGameRunning) return;
     if (isGameWon || isGameLost) {
+        camView=1;
         isGameRunning=false;
         ofClear(0, 0, 0);
         return;
@@ -257,11 +258,14 @@ void ofApp::update() {
         checkCollisions();
         if (isGameLost) return;
         //float d = glm::length(max - lz.pos);
-        if (min.y- lz.pos.y <=lz.radius){
+        cout <<lander.getPosition().y << endl;
+        cout << lz.height<<endl;
+        if (lander.getPosition().y>=lz.pos.y+lz.height/2){
             lz.lState=LANDED;
             isGameWon=true;
         }
-    } else if (min.x- lz.pos.x <=lz.radius && min.y- lz.pos.y <=lz.radius*2 && min.z- lz.pos.z <=lz.radius){
+    } else if (abs(min.x- lz.pos.x) <=lz.radius*2 && abs(min.y- (lz.pos.y + lz.height)) <=lz.radius*4 && abs(min.z- lz.pos.z) <=lz.radius*2){
+        
         lz.lState=APPROACH;
     } else lz.lState=FAR;
         
@@ -646,6 +650,9 @@ void ofApp::keyPressed(int key) {
                 tem.start();
                 
                 isShipThrusting=true;
+                if (!thrust.isPlaying()) {
+                    thrust.play();
+                }
                 moveZDir = -1;
             }
             break;
@@ -653,6 +660,9 @@ void ofApp::keyPressed(int key) {
             if (fuelLimit>=tFuelUsed){
                 tem.start();
                 isShipThrusting=true;
+                if (!thrust.isPlaying()) {
+                    thrust.play();
+                }
                 moveZDir = 1;
             }
             break;
@@ -660,6 +670,9 @@ void ofApp::keyPressed(int key) {
             if (fuelLimit>=tFuelUsed){
                 tem.start();
                 isShipThrusting=true;
+                if (!thrust.isPlaying()) {
+                    thrust.play();
+                }
                 moveXDir = -1;
             }
             break;
@@ -667,6 +680,9 @@ void ofApp::keyPressed(int key) {
             if (fuelLimit>=tFuelUsed){
                 tem.start();
                 isShipThrusting=true;
+                if (!thrust.isPlaying()) {
+                    thrust.play();
+                }
                 moveXDir = 1;
             }
             //player.rot+=pRotationSpeed;
@@ -730,25 +746,31 @@ void ofApp::keyReleased(int key) {
             thrust.stop();
             break;
         case OF_KEY_UP:
+            /*
             isShipThrusting=false;
             moveZDir = 0;
             break;
+            */
         case OF_KEY_DOWN:
             isShipThrusting=false;
             moveZDir = 0;
             break;
         case OF_KEY_LEFT:
+            /*
             isShipThrusting=false;
             moveXDir = 0;
             break;
+             */
         case OF_KEY_RIGHT:
             isShipThrusting=false;
             moveXDir = 0;
             break;
         case 'h':
+            /*
             isShipThrusting=false;
             rotDir=0;
             break;
+             */
         case 'g':
             isShipThrusting=false;
             rotDir=0;
