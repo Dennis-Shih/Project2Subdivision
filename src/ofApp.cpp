@@ -100,8 +100,8 @@ void ofApp::setup(){
     landingLight.setSpotlightCutOff(30);
     landingLight.rotateDeg(-90, 1, 0, 0);
     landingLight.setAmbientColor(ofFloatColor(100, 100, 1));
-    landingLight.setDiffuseColor(ofFloatColor(30, 30, 1));
-    landingLight.setSpecularColor(ofFloatColor(1, 1, 1));
+    landingLight.setDiffuseColor(ofFloatColor(1, 1, 1));
+    landingLight.setSpecularColor(ofFloatColor(100, 100, 100));
     
     tem.setEmitterType(DiscEmitter);
     tem.sys->addForce(new ThrusterForce(velocity));
@@ -117,6 +117,9 @@ void ofApp::setup(){
     explEm.setParticleRadius(100);
     explEm.setOneShot(true);
     
+    if (menuBgm.load("audio/menu.mp3")){
+        cout << "thrust sound loaded" << endl;
+    }
     if (thrust.load("audio/thrusters-loop.wav")){
         cout << "thrust sound loaded" << endl;
     }
@@ -147,7 +150,7 @@ void ofApp::setup(){
     
     isGameLost=false;
     isGameWon=false;
-    
+    menuBgm.play();
     
     
 }
@@ -246,7 +249,7 @@ void ofApp::update() {
     integrate();
     if (!isGameRunning) return;
     if (isGameWon || isGameLost) {
-        camView=1;
+        if (camView==3) camView=1;
         isGameRunning=false;
         ofClear(0, 0, 0);
         return;
@@ -268,8 +271,7 @@ void ofApp::update() {
         checkCollisions();
         if (isGameLost) return;
         //float d = glm::length(max - lz.pos);
-        cout <<lander.getPosition().y << endl;
-        cout << lz.height<<endl;
+        
         if (lander.getPosition().y>=lz.pos.y+lz.height/2){
             lz.lState=LANDED;
             isGameWon=true;
@@ -331,7 +333,7 @@ void ofApp::checkCollisions() {
         explosion.play();
         isGameLost=true;
         rotSpeed=30;
-        restitution=10;
+        restitution=30;
         
     }
     
@@ -590,11 +592,13 @@ void ofApp::resetGame(){
     
     velocity=ofVec3f(0);
     accel=ofVec3f(0);
+    restitution=1;
     rotSpeed=0;
     tFuelUsed=0;
     lz.lState=FAR;
     isGameWon=false;
     isGameLost=false;
+    camView=1;
     //setup();
 }
 
@@ -679,6 +683,7 @@ void ofApp::keyPressed(int key) {
          h and g to rotate
          */
         case OF_KEY_SHIFT:
+            if (!isGameRunning) return;
             if (fuelLimit>=tFuelUsed){
                 isShipThrusting=true;
                 if (!thrust.isPlaying()) {
@@ -688,6 +693,7 @@ void ofApp::keyPressed(int key) {
             }
             break;
         case OF_KEY_TAB:
+            if (!isGameRunning) return;
             if (fuelLimit>=tFuelUsed){
                 tem.start();
                 
@@ -699,6 +705,7 @@ void ofApp::keyPressed(int key) {
             }
             break;
         case OF_KEY_UP:
+            if (!isGameRunning) return;
             if (fuelLimit>=tFuelUsed){
                 tem.start();
                 
@@ -710,6 +717,7 @@ void ofApp::keyPressed(int key) {
             }
             break;
         case OF_KEY_DOWN:
+            if (!isGameRunning) return;
             if (fuelLimit>=tFuelUsed){
                 tem.start();
                 isShipThrusting=true;
@@ -720,6 +728,7 @@ void ofApp::keyPressed(int key) {
             }
             break;
         case OF_KEY_LEFT:
+            if (!isGameRunning) return;
             if (fuelLimit>=tFuelUsed){
                 tem.start();
                 isShipThrusting=true;
@@ -730,6 +739,7 @@ void ofApp::keyPressed(int key) {
             }
             break;
         case OF_KEY_RIGHT:
+            if (!isGameRunning) return;
             if (fuelLimit>=tFuelUsed){
                 tem.start();
                 isShipThrusting=true;
@@ -762,6 +772,7 @@ void ofApp::keyPressed(int key) {
             exit();
             break;
         case ' ':
+            if (menuBgm.isPlaying()) menuBgm.stop();
             if (!isGameRunning){
                 resetGame();
             }
@@ -814,6 +825,7 @@ void ofApp::keyReleased(int key) {
         case OF_KEY_DOWN:
             isShipThrusting=false;
             moveZDir = 0;
+            thrust.stop();
             break;
         case OF_KEY_LEFT:
             /*
@@ -824,15 +836,12 @@ void ofApp::keyReleased(int key) {
         case OF_KEY_RIGHT:
             isShipThrusting=false;
             moveXDir = 0;
+            thrust.stop();
             break;
         case 'h':
-            /*
-            isShipThrusting=false;
-            rotDir=0;
-            break;
-             */
+            
         case 'g':
-            isShipThrusting=false;
+            
             rotDir=0;
             break;
         default:

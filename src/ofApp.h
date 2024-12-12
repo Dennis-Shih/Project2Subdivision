@@ -116,7 +116,7 @@ class ofApp : public ofBaseApp{
 		ofVec3f intersectPoint;
         
         
-    
+        ofSoundPlayer menuBgm;
         ofSoundPlayer thrust;
         ofSoundPlayer explosion;
         ofImage bgImg;
