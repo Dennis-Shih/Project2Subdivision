@@ -450,15 +450,46 @@ void ofApp::draw() {
     ofEnableBlendMode(OF_BLENDMODE_ADD);
     ofEnablePointSprites();
     shader.begin();
-    cam.begin();
+    switch (camView){
+        case 1:
+            cam.begin();
+            break;
+        case 2:
+            trackingCam.begin();
+            trackingCam.lookAt(lander.getPosition());
+            break;
+        case 3:
+            onboardCam.begin();
+            break;
+        default:
+            cam.begin();
+            break;
+    }
+    
     
     particleTex.bind();
     vbo.draw(GL_POINTS, 0, (int)tem.sys->particles.size());
     vboExpl.draw(GL_POINTS, 0, (int)explEm.sys->particles.size());
     //vbo.draw(GL_POINTS, 0, (int)explEm.sys->particles.size());
     particleTex.unbind();
-    cam.end();
+    
+    switch (camView){
+        case 1:
+            cam.end();
+            break;
+        case 2:
+            trackingCam.end();
+            break;
+        case 3:
+            onboardCam.end();
+            break;
+        default:
+            cam.end();
+            break;
+    }
     shader.end();
+    
+    
     ofDisablePointSprites();
     ofDisableBlendMode();
     ofEnableAlphaBlending();
@@ -484,8 +515,10 @@ void ofApp::draw() {
         }
         string instructions = "Instructions: \n Arrow Keys to fly horizontally"
         "\n Tab/Shift to increase/decrease altitude\n g/h keys to rotate vehicle \n"
+        "t to toggle spacecraft light\n "
         "Number keys for cameras: \n 1: Default easyCam\n"
-        " 2: tracking cam\n 3: Onboard cam";
+        " 2: tracking cam\n 3: Onboard cam\n "
+        "x key to retarget easyCam on spacecraft";
         ofDrawBitmapString(instructions, ofGetWindowWidth()/2, 40);
     } else {
         
@@ -494,7 +527,8 @@ void ofApp::draw() {
         ofSetColor(ofColor::white);
         ofDrawBitmapString(str, ofGetWindowWidth() -200, 15);
         float f=fuelLimit-tFuelUsed;
-        string fuel = "Fuel remaining: " + ofToString(f) + "";
+        if (f <0) f = 0;
+        string fuel = "Fuel remaining: " + ofToString(f) + "s";
         ofDrawBitmapString(fuel, ofGetWindowWidth() -200, 30);
         if (showAgl){
             string aglStr;
@@ -586,6 +620,9 @@ void ofApp::keyPressed(int key) {
             break;
         case 's':
             savePicture();
+            break;
+        case 'x':
+            if (camView==1) setCameraTarget();
             break;
         /*
          Camera views:
@@ -905,7 +942,7 @@ void ofApp::mouseReleased(int x, int y, int button) {
 // Set the camera to use the selected point as it's new target
 //
 void ofApp::setCameraTarget() {
-    
+    cam.lookAt(lander.getPosition());
 }
 
 
