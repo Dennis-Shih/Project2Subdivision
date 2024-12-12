@@ -124,6 +124,7 @@ void ofApp::setup(){
     if (explosion.load("audio/explosion.wav")){
         cout << "explosion sound loaded" << endl;
     }
+
     //thrust.setLoop(true);
     //ofSoundStreamSetup(2, 0, 44100, 4000, 8);
     forceX =ofVec3f(1,0,0)* moveXDir* speed;
@@ -223,13 +224,16 @@ void ofApp::integrate(){
 
 void ofApp::update() {
     explEm.update();
-    if (!isGameRunning) return;
+    if (!isGameRunning && !isGameLost) return;
+    /*
+     if (!isGameRunning) return;
     if (isGameWon || isGameLost) {
         camView=1;
         isGameRunning=false;
         ofClear(0, 0, 0);
         return;
     }
+    */
     //ship physics
     tem.setPosition(lander.getPosition());
     forceX =ofVec3f(1,0,0)* moveXDir* speed + ofRandom(tmin.x, tmax.x);
@@ -240,7 +244,13 @@ void ofApp::update() {
   
     
     integrate();
-    
+    if (!isGameRunning) return;
+    if (isGameWon || isGameLost) {
+        camView=1;
+        isGameRunning=false;
+        ofClear(0, 0, 0);
+        return;
+    }
     //check if lander intersect octree boxes
     ofVec3f min = lander.getSceneMin() + lander.getPosition();
     ofVec3f max = lander.getSceneMax() + lander.getPosition();
@@ -314,13 +324,14 @@ float ofApp::getAgl(ofVec3f p0){
  */
 void ofApp::checkCollisions() {
     glm::vec3 v=glm::vec3(velocity.x,velocity.y,velocity.z);
-    if (abs(glm::length(v))>5) {
+    if (abs(glm::length(v))>7) {
         
         explEm.setPosition(lander.getPosition());
         explEm.start();
         explosion.play();
         isGameLost=true;
-        
+        rotSpeed=30;
+        restitution=10;
         
     }
     
@@ -518,7 +529,7 @@ void ofApp::draw() {
         "t to toggle spacecraft light\n "
         "Number keys for cameras: \n 1: Default easyCam\n"
         " 2: tracking cam\n 3: Onboard cam\n "
-        "x key to retarget easyCam on spacecraft";
+        "X key to retarget easyCam on spacecraft\n Q to quit";
         ofDrawBitmapString(instructions, ofGetWindowWidth()/2, 40);
     } else {
         
@@ -536,6 +547,9 @@ void ofApp::draw() {
             
             ofDrawBitmapString(aglStr, ofGetWindowWidth() -200, 45);
         }
+        float v=velocity.length();
+        string velocity = "Velocity: " +std::to_string(v)+ "m/s";
+        ofDrawBitmapString(velocity, ofGetWindowWidth() -200, 60);
     }
 }
 
@@ -573,8 +587,10 @@ void ofApp::resetGame(){
     explEm.sys->reset();
     explEm.sys->removeAll();
     lander.setPosition(lInitPos.x, lInitPos.y, lInitPos.z);
+    
     velocity=ofVec3f(0);
     accel=ofVec3f(0);
+    rotSpeed=0;
     tFuelUsed=0;
     lz.lState=FAR;
     isGameWon=false;
@@ -733,10 +749,17 @@ void ofApp::keyPressed(int key) {
             //isShipThrusting=true;
             rotDir=-1;
             break;
+        case 'j':
+            
+            break;
         case 't':
             
             if (landingLight.getIsEnabled()) landingLight.disable();
             else landingLight.enable();
+            break;
+        case 'q':
+            
+            exit();
             break;
         case ' ':
             if (!isGameRunning){
