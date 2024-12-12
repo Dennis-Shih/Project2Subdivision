@@ -58,14 +58,16 @@ void ofApp::setup(){
     accel = ofVec3f(0,0,0);
     gravMag=1;
     restitution=1;
+    lInitPos=ofVec3f(0,30,0);
     lander.setScaleNormalization(false);
-    lander.setPosition(0, 30, 0);
+    lander.setPosition(lInitPos.x, lInitPos.y, lInitPos.z);
     
     trackingCam.setPosition(-40,5,50);
     
     //trackingCam.setPosition(0,lander.getPosition().y,50);
     onboardCam.rotateDeg(-90, 1, 0, 0);
     camView=1;
+    
     
     ofDisableArbTex();
     if (!ofLoadImage(particleTex, "img/dot.png")) {
@@ -92,6 +94,15 @@ void ofApp::setup(){
     cout << "Number of Verts: " << mars.getMesh(0).getNumVertices() << endl;
     
     lz.setup();
+    
+    landingLight.setup();
+    landingLight.setSpotlight();
+    landingLight.setSpotlightCutOff(30);
+    landingLight.rotateDeg(-90, 1, 0, 0);
+    landingLight.setAmbientColor(ofFloatColor(100, 100, 1));
+    landingLight.setDiffuseColor(ofFloatColor(30, 30, 1));
+    landingLight.setSpecularColor(ofFloatColor(1, 1, 1));
+    
     tem.setEmitterType(DiscEmitter);
     tem.sys->addForce(new ThrusterForce(velocity));
     tem.setOneShot(true);
@@ -133,7 +144,8 @@ void ofApp::setup(){
     tPartRadius=15;
     fuelLimit=120;
     
-    //sys->addForce(new TurbulenceForce(ofVec3f(-3, -1, -1), ofVec3f(3, 1, 1)));
+    isGameLost=false;
+    isGameWon=false;
     
     
     
@@ -210,9 +222,10 @@ void ofApp::integrate(){
 }
 
 void ofApp::update() {
-    
-    if (!isGameRunning) {
-        
+    explEm.update();
+    if (!isGameRunning) return;
+    if (isGameWon || isGameLost) {
+        isGameRunning=false;
         ofClear(0, 0, 0);
         return;
     }
@@ -232,26 +245,37 @@ void ofApp::update() {
     ofVec3f max = lander.getSceneMax() + lander.getPosition();
     
     Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+    
+    
     colBoxList.clear();
+    //terain collision
     if (octree.intersect(bounds, octree.root, colBoxList)){
         //cout << "intersect" << endl;
         checkCollisions();
-        
+    //landing zone collision
     } else if (lz.overlap(bounds)){
-        //win
+        checkCollisions();
+        if (isGameLost) return;
+        //float d = glm::length(max - lz.pos);
+        if (min.y- lz.pos.y <=lz.radius){
+            lz.lState=LANDED;
+            isGameWon=true;
+        }
+    } else if (min.x- lz.pos.x <=lz.radius && min.y- lz.pos.y <=lz.radius*2 && min.z- lz.pos.z <=lz.radius){
+        lz.lState=APPROACH;
+    } else lz.lState=FAR;
         
-    } else if (showAgl) agl=getAgl(min);
+    if (showAgl) agl=getAgl(min);
     //cout<<"lz contact:" << lz.overlap(bounds)<<endl;
     onboardCam.setPosition(ofVec3f(max.x, max.y+3.25, max.z));
     tem.update();
-    explEm.update();
+    
     //fuel
     if (isShipThrusting){
         tFuelUsed+= ofGetLastFrameTime();
-        
-        
     }
-    
+    landingLight.setPosition(lander.getPosition());
+    lz.update();
 }
 /*Ray collision for AGL
  */
@@ -285,13 +309,14 @@ float ofApp::getAgl(ofVec3f p0){
  Func to apply impulse force if ship collides terrain, checks if ship collides too fast
  */
 void ofApp::checkCollisions() {
-    
-    if (velocity.y<=-5) {
-        //isGameLost=true;
-        //isGameRunning=false;
+    glm::vec3 v=glm::vec3(velocity.x,velocity.y,velocity.z);
+    if (abs(glm::length(v))>5) {
+        
         explEm.setPosition(lander.getPosition());
         explEm.start();
         explosion.play();
+        isGameLost=true;
+        
         
     }
     
@@ -395,7 +420,6 @@ void ofApp::draw() {
     }
     //draw LZ
     ofSetColor(ofColor::white);
-    
     lz.draw();
     ofPopMatrix();
     
@@ -440,28 +464,39 @@ void ofApp::draw() {
     if (!bHide) gui.draw();
     glDepthMask(true);
     
+    ofDisableLighting();
     
     
     if (!isGameRunning) {
-        string instructions = "Space to start\n"
-        "Arrow Keys to fly horizontally"
-        "\nTab/Shift to increase/decrease altitude\n g/h keys to rotate vehicle \n"
+        if (isGameLost){
+            string gameOver="GAME OVER\n Press space to restart";
+            ofDrawBitmapString(gameOver, ofGetWindowWidth()/2, 200);
+        } else if (isGameWon){
+            string gameWon="Landing successful\n Press space to restart";
+            ofDrawBitmapString(gameWon, ofGetWindowWidth()/2, 200);
+        } else {
+            string space="Press space to start";
+            ofDrawBitmapString(space, ofGetWindowWidth()/2, 200);
+        }
+        string instructions = "Instructions: \n Arrow Keys to fly horizontally"
+        "\n Tab/Shift to increase/decrease altitude\n g/h keys to rotate vehicle \n"
         "Number keys for cameras: \n 1: Default easyCam\n"
         " 2: tracking cam\n 3: Onboard cam";
         ofDrawBitmapString(instructions, ofGetWindowWidth()/2, 40);
     } else {
+        
         string str;
         str += "Frame Rate: " + std::to_string(ofGetFrameRate());
         ofSetColor(ofColor::white);
-        ofDrawBitmapString(str, ofGetWindowWidth() -170, 15);
+        ofDrawBitmapString(str, ofGetWindowWidth() -200, 15);
         float f=fuelLimit-tFuelUsed;
         string fuel = "Fuel remaining: " + ofToString(f) + "";
-        ofDrawBitmapString(fuel, ofGetWindowWidth() -170, 30);
+        ofDrawBitmapString(fuel, ofGetWindowWidth() -200, 30);
         if (showAgl){
             string aglStr;
             aglStr += "AGL: " + std::to_string(agl) + "m";
             
-            ofDrawBitmapString(aglStr, ofGetWindowWidth() -170, 45);
+            ofDrawBitmapString(aglStr, ofGetWindowWidth() -200, 45);
         }
     }
 }
@@ -495,8 +530,18 @@ void ofApp::drawAxis(ofVec3f location) {
 
 void ofApp::resetGame(){
     ofResetElapsedTimeCounter();
-    
-    setup();
+    ofClear(0, 0, 0);
+    tem.sys->reset();
+    explEm.sys->reset();
+    explEm.sys->removeAll();
+    lander.setPosition(lInitPos.x, lInitPos.y, lInitPos.z);
+    velocity=ofVec3f(0);
+    accel=ofVec3f(0);
+    tFuelUsed=0;
+    lz.lState=FAR;
+    isGameWon=false;
+    isGameLost=false;
+    //setup();
 }
 
 
@@ -635,18 +680,18 @@ void ofApp::keyPressed(int key) {
             //isShipThrusting=true;
             rotDir=-1;
             break;
+        case 't':
+            
+            if (landingLight.getIsEnabled()) landingLight.disable();
+            else landingLight.enable();
+            break;
         case ' ':
-            if (isGameLost){
-                isGameLost = false;
-                
+            if (!isGameRunning){
                 resetGame();
             }
             isGameRunning=true;
             
-            /* testing
-            explEm.sys->reset();
-            explEm.start();
-            */
+           
             break;
         case OF_KEY_DEL:
             break;

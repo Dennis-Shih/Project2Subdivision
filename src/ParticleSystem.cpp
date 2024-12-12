@@ -14,6 +14,11 @@ void ParticleSystem::addForce(ParticleForce *f) {
 void ParticleSystem::remove(int i) {
 	particles.erase(particles.begin() + i);
 }
+void ParticleSystem::removeAll() {
+    particles.erase(particles.begin(), particles.end());
+    
+}
+
 
 void ParticleSystem::setLifespan(float l) {
 	for (int i = 0; i < particles.size(); i++) {

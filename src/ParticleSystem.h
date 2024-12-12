@@ -23,6 +23,7 @@ public:
 	void update();
 	void setLifespan(float);
 	void reset();
+    void removeAll();
 	int removeNear(const ofVec3f & point, float dist);
 	void draw();
 	vector<Particle> particles;

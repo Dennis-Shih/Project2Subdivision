@@ -96,7 +96,9 @@ class ofApp : public ofBaseApp{
         int camView;
         ofCamera trackingCam;
         ofCamera onboardCam;
-    
+        ofLight landingLight;
+        
+        ofVec3f lInitPos;
         ofVec3f forceX;
         ofVec3f forceY;
         ofVec3f forceZ;
