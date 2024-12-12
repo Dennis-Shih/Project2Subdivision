@@ -1,6 +1,4 @@
 
-// Kevin M.Smith - CS 134 SJSU
-
 #include "ParticleSystem.h"
 
 void ParticleSystem::add(const Particle &p) {

@@ -1,12 +1,11 @@
 #pragma once
-//  Kevin M. Smith - CS 134 SJSU
+
 
 #include "ofMain.h"
 #include "Particle.h"
 
 
-//  Pure Virtual Function Class - must be subclassed to create new forces.
-//
+
 class ParticleForce {
 protected:
 public:

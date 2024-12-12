@@ -1,5 +1,4 @@
 
-//  Kevin M. Smith - CS 134 SJSU
 
 #include "ParticleEmitter.h"
 

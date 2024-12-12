@@ -2,7 +2,7 @@
 /*
  Dennis Shih
  Final proj
- due: 12/12/2024
+ Due: 12/12/2024
  */
 
 
@@ -61,7 +61,7 @@ void ofApp::setup(){
     lInitPos=ofVec3f(0,30,0);
     lander.setScaleNormalization(false);
     lander.setPosition(lInitPos.x, lInitPos.y, lInitPos.z);
-    
+    excessSpeed=9;
     trackingCam.setPosition(-40,5,50);
     
     //trackingCam.setPosition(0,lander.getPosition().y,50);
@@ -80,10 +80,11 @@ void ofApp::setup(){
     #else
         shader.load("shaders/shader");
     #endif
-    
+    /*
     gui.setup();
     gui.add(numLevels.setup("Number of Octree Levels", 1, 1, 10));
-    gui.add(timeInfo.setup("Timing info", false));
+    */
+    
     bHide = false;
     
     
@@ -249,7 +250,7 @@ void ofApp::update() {
     integrate();
     if (!isGameRunning) return;
     if (isGameWon || isGameLost) {
-        if (camView==3) camView=1;
+        if (camView==3) camView=2;
         isGameRunning=false;
         ofClear(0, 0, 0);
         return;
@@ -283,7 +284,7 @@ void ofApp::update() {
         
     if (showAgl) agl=getAgl(min);
     //cout<<"lz contact:" << lz.overlap(bounds)<<endl;
-    onboardCam.setPosition(ofVec3f(max.x, max.y+3.25, max.z));
+    onboardCam.setPosition(ofVec3f(lander.getPosition().x, max.y+4.7, lander.getPosition().z));
     tem.update();
     
     //fuel
@@ -326,7 +327,7 @@ float ofApp::getAgl(ofVec3f p0){
  */
 void ofApp::checkCollisions() {
     glm::vec3 v=glm::vec3(velocity.x,velocity.y,velocity.z);
-    if (abs(glm::length(v))>7) {
+    if (abs(glm::length(v))>excessSpeed) {
         
         explEm.setPosition(lander.getPosition());
         explEm.start();
@@ -508,13 +509,14 @@ void ofApp::draw() {
     ofEnableAlphaBlending();
     glDepthMask(GL_TRUE);
     //cam.end();
+    /*
     glDepthMask(false);
     if (!bHide) gui.draw();
     glDepthMask(true);
-    
+    */
     ofDisableLighting();
     
-    
+    ofSetColor(ofColor::red);
     if (!isGameRunning) {
         if (isGameLost){
             string gameOver="GAME OVER\n Press space to restart";
@@ -532,12 +534,12 @@ void ofApp::draw() {
         "Number keys for cameras: \n 1: Default easyCam\n"
         " 2: tracking cam\n 3: Onboard cam\n "
         "X key to retarget easyCam on spacecraft\n Q to quit";
-        ofDrawBitmapString(instructions, ofGetWindowWidth()/2, 40);
+        ofDrawBitmapString(instructions, ofGetWindowWidth()*2/3, 40);
     } else {
         
         string str;
         str += "Frame Rate: " + std::to_string(ofGetFrameRate());
-        ofSetColor(ofColor::white);
+        ofSetColor(ofColor::yellow);
         ofDrawBitmapString(str, ofGetWindowWidth() -200, 15);
         float f=fuelLimit-tFuelUsed;
         if (f <0) f = 0;
@@ -773,7 +775,7 @@ void ofApp::keyPressed(int key) {
             break;
         case ' ':
             if (menuBgm.isPlaying()) menuBgm.stop();
-            if (!isGameRunning){
+            if (isGameWon || isGameLost){
                 resetGame();
             }
             isGameRunning=true;
@@ -889,37 +891,9 @@ void ofApp::mousePressed(int x, int y, int button) {
             bLanderSelected = false;
         }
     }
-    else {
-        /*
-        ofVec3f p;
-        raySelectWithOctree(p);
-        */
-    }
+    
 }
-/*
-bool ofApp::raySelectWithOctree(ofVec3f &pointRet) {
-    ofVec3f mouse(mouseX, mouseY);
-    ofVec3f rayPoint = cam.screenToWorld(mouse);
-    ofVec3f rayDir = rayPoint - cam.getPosition();
-    rayDir.normalize();
-    Ray ray = Ray(Vector3(rayPoint.x, rayPoint.y, rayPoint.z),
-                  Vector3(rayDir.x, rayDir.y, rayDir.z));
-    
-    ofResetElapsedTimeCounter();
-    pointSelected = octree.intersect(ray, octree.root, selectedNode);
-    
-    if (timeInfo){
-        cout << "ray search time (ms): "<<ofGetElapsedTimeMillis()<<endl;
-    }
-    
-    
-    if (pointSelected) {
-        pointRet = octree.mesh.getVertex(selectedNode.points[0]);
-        
-    }
-    return pointSelected;
-}
-*/
+
 
 
 

@@ -144,7 +144,7 @@ class ofApp : public ofBaseApp{
         ofShader shader;
         ImpulseRadialForce *radialForce;
         float tPartRadius;
-    
+        float excessSpeed;
         float tFuelUsed;
         float fuelLimit;
         bool isGameRunning;
